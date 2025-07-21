@@ -1,30 +1,18 @@
 import os
 import requests
 from telegram import Bot
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lsa import LsaSummarizer
 
 # Load secrets from environment variables
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 CHAT_ID = os.environ.get('CHAT_ID')
 NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
 
-def summarize_text(text, sentence_count=2):
-    if not text or len(text.split()) < 20:
-        return text.strip()
-    parser = PlaintextParser.from_string(text, Tokenizer("english"))
-    summarizer = LsaSummarizer()
-    summary = summarizer(parser.document, sentence_count)
-    return ' '.join(str(sentence) for sentence in summary)
-
 def fetch_top_tech_news():
-    api_key = NEWS_API_KEY.strip() if NEWS_API_KEY else ""
-    url = f"https://newsdata.io/api/1/news?apikey={api_key}&category=technology&language=en"
+    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en"
     try:
         response = requests.get(url)
         data = response.json()
-        print("🔍 Full API Response:")
+        print("🔍 API Response:")
         print(data)
     except Exception as e:
         print("❌ Error fetching/parsing API:", e)
@@ -39,23 +27,26 @@ def fetch_top_tech_news():
         print("❌ No valid 'results' found.")
         return []
 
-    return articles[:10]
-
+    return articles[:10]  # Get top 10
 
 def format_news(news_list):
     formatted = "📰 *Top Tech News Today*\n\n"
     for idx, article in enumerate(news_list, 1):
         title = article.get("title", "No title")
-        description = article.get("description", "")
-        content = article.get("content", "")
-        summary_source = description or content or title
-        brief = summarize_text(summary_source)
-        formatted += f"🔹 *{title}*\n_{brief}_\n\n"
+        description = article.get("description", "").strip()
+        link = article.get("link", "")
+        pub_date = article.get("pubDate", "")
+        formatted += (
+            f"🔹 *{title}*\n"
+            f"_{description}_\n"
+            f"[Read more here]({link})\n"
+            f"`Published: {pub_date}`\n\n"
+        )
     return formatted
 
 def send_telegram_message(message):
     bot = Bot(token=BOT_TOKEN)
-    # Split message if too long
+    # Telegram message limit is ~4096 characters
     for i in range(0, len(message), 4000):
         bot.send_message(chat_id=CHAT_ID, text=message[i:i+4000], parse_mode="Markdown")
 
@@ -71,8 +62,6 @@ def main():
         print("✅ News sent successfully.")
     else:
         print("⚠️ No message content to send.")
-        
-
 
 if __name__ == "__main__":
     main()
