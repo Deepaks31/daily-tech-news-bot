@@ -5,36 +5,50 @@ BOT_TOKEN = os.environ['BOT_TOKEN']
 CHAT_ID = os.environ['CHAT_ID']
 NEWS_API_KEY = os.environ['NEWS_API_KEY']
 
-def fetch_tech_news():
-    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en"
-    res = requests.get(url).json()
-    return res['results'][:10]  # Top 10
-
-def summarize_text(text):
-    url = "https://api.aiforthings.com/summarize"  # Example summarizer API
-    response = requests.post(url, json={"text": text})
-    return response.json().get("summary", "No summary available.")
-
-def send_telegram_message(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML"
+# Get top tech news
+def fetch_news():
+    url = "https://newsapi.org/v2/top-headlines"
+    params = {
+        "category": "technology",
+        "language": "en",
+        "pageSize": 10,
+        "apiKey": NEWS_API_KEY
     }
-    requests.post(url, data=data)
+    response = requests.get(url, params=params)
+    data = response.json()
+    return data.get("articles", [])
 
-def main():
-    news_list = fetch_tech_news()
-    message = "📰 <b>Today's Top Tech News</b>\n\n"
+# Summarize using OpenAI (mocked with description fallback)
+def summarize(article):
+    if article["description"]:
+        return article["description"]
+    elif article["content"]:
+        return article["content"].split("…")[0]
+    else:
+        return "_No summary available._"
 
-    for idx, news in enumerate(news_list, 1):
-        title = news.get('title')
-        content = news.get('description') or news.get('content', '')
-        summary = summarize_text(content) if content else "No summary available."
-        message += f"<b>{idx}. {title}</b>\n{summary}\n\n"
+# Format and send message
+def send_to_telegram(articles):
+    message = "📰 *Today's Top Tech News*\n\n"
+    for idx, article in enumerate(articles, start=1):
+        title = article["title"]
+        summary = summarize(article)
+        message += f"*{idx}. {title}*\n_{summary}_\n\n"
 
-    send_telegram_message(message)
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+
+    response = requests.post(url, json=payload)
+    print("Status:", response.status_code)
+    print("Response:", response.text)
 
 if __name__ == "__main__":
-    main()
+    articles = fetch_news()
+    if articles:
+        send_to_telegram(articles)
+    else:
+        print("No articles found.")
