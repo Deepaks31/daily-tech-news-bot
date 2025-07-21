@@ -18,8 +18,8 @@ def get_tech_news():
     current_message = "📰 *Top Tech News Today*\n\n"
 
     for i, article in enumerate(articles, 1):
-        title = article.get("title", "No title").strip()
-        description = article.get("description", "No description").strip()
+        title = (article.get("title") or "No title").strip()
+        description = (article.get("description") or "No description").strip()
         entry = f"🔹 *{title}*\n_{description}_\n\n"
 
         if len(current_message) + len(entry) > 3900:
