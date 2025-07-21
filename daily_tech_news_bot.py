@@ -8,10 +8,13 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 def get_tech_news():
     url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en&country=us"
     response = requests.get(url)
-    data = response.json()
+    try:
+        data = response.json()
+    except Exception as e:
+        return [f"❌ Failed to parse JSON: {str(e)}"]
 
-    if "results" not in data or not data["results"]:
-        return ["❌ No tech news found today."]
+    if not isinstance(data.get("results"), list):
+        return [f"❌ Unexpected API response: {data}"]
 
     articles = data["results"][:10]
     news_messages = []
