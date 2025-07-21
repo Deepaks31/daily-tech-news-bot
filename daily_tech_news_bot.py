@@ -1,8 +1,8 @@
+import os
 import requests
 
-# Replace with your own token and chat ID
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "YOUR_TELEGRAM_USER_ID"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 def get_tech_news():
     url = "https://hn.algolia.com/api/v1/search?tags=story&query=technology"
