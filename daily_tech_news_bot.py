@@ -72,8 +72,6 @@ def main():
     else:
         print("⚠️ No message content to send.")
         
-print(f"Using API key: '{NEWS_API_KEY}'")
-print(f"Length: {len(NEWS_API_KEY)}")
 
 
 if __name__ == "__main__":
