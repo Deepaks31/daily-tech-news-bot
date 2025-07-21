@@ -2,7 +2,7 @@ name: Daily Tech News Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # every day at 9 AM UTC
+    - cron: '0 9 * * *'  # Every day at 9 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install python-telegram-bot requests sumy
+          pip install python-telegram-bot requests
 
       - name: Run bot
         env:
