@@ -5,7 +5,7 @@ from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
 
-# Load secrets from environment
+# Load secrets from environment variables
 TELEGRAM_BOT_TOKEN = os.environ.get('BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.environ.get('CHAT_ID')
 NEWSDATA_API_KEY = os.environ.get('NEWS_API_KEY')
@@ -19,18 +19,18 @@ def summarize_text(text, sentence_count=2):
     return ' '.join(str(sentence) for sentence in summary)
 
 def fetch_top_tech_news():
-   url = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_API_KEY}&category=technology&language=en"
+    url = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_API_KEY}&category=technology&language=en"
     try:
         response = requests.get(url)
         data = response.json()
         print("🔍 Full API Response:")
-        print(data)  # ← Add this line to inspect the real response
+        print(data)
     except Exception as e:
         print("❌ Error fetching/parsing API:", e)
         return []
 
     if data.get("status") != "success":
-        print("❌ API Error:", data.get("message", "Unknown error"))
+        print("❌ API Error:", data.get("results", {}).get("message", "Unknown error"))
         return []
 
     articles = data.get("results")
@@ -39,7 +39,6 @@ def fetch_top_tech_news():
         return []
 
     return articles[:10]
-
 
 def format_news(news_list):
     formatted = "📰 *Top Tech News Today*\n\n"
@@ -54,7 +53,7 @@ def format_news(news_list):
 
 def send_telegram_message(message):
     bot = Bot(token=TELEGRAM_BOT_TOKEN)
-    # Split if message exceeds Telegram limit
+    # Split message if too long
     for i in range(0, len(message), 4000):
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message[i:i+4000], parse_mode="Markdown")
 
@@ -65,8 +64,7 @@ def main():
         return
 
     message = format_news(news_list)
-
-    if len(message) > 0:
+    if message:
         send_telegram_message(message)
         print("✅ News sent successfully.")
     else:
