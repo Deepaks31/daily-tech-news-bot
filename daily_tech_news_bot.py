@@ -14,7 +14,10 @@ def get_tech_news():
 def send_to_telegram(message):
     telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
-    requests.post(telegram_url, data=data)
+    response = requests.post(telegram_url, data=data)
+    print("Status:", response.status_code)
+    print("Response:", response.text)
 
-msg = get_tech_news()
-send_to_telegram(msg)
+if __name__ == "__main__":
+    msg = get_tech_news()
+    send_to_telegram(msg)
