@@ -19,7 +19,8 @@ def summarize_text(text, sentence_count=2):
     return ' '.join(str(sentence) for sentence in summary)
 
 def fetch_top_tech_news():
-    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en"
+    api_key = NEWS_API_KEY.strip() if NEWS_API_KEY else ""
+    url = f"https://newsdata.io/api/1/news?apikey={api_key}&category=technology&language=en"
     try:
         response = requests.get(url)
         data = response.json()
@@ -39,6 +40,7 @@ def fetch_top_tech_news():
         return []
 
     return articles[:10]
+
 
 def format_news(news_list):
     formatted = "📰 *Top Tech News Today*\n\n"
@@ -69,6 +71,10 @@ def main():
         print("✅ News sent successfully.")
     else:
         print("⚠️ No message content to send.")
+        
+print(f"Using API key: '{NEWS_API_KEY}'")
+print(f"Length: {len(NEWS_API_KEY)}")
+
 
 if __name__ == "__main__":
     main()
