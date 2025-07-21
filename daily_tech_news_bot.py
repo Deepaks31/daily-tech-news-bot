@@ -1,46 +1,40 @@
-import os
 import requests
+import os
 
-# Load environment variables
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+BOT_TOKEN = os.environ['BOT_TOKEN']
+CHAT_ID = os.environ['CHAT_ID']
+NEWS_API_KEY = os.environ['NEWS_API_KEY']
 
-def get_tech_news():
-    url = "https://hn.algolia.com/api/v1/search?tags=story&query=technology"
-    res = requests.get(url)
+def fetch_tech_news():
+    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en"
+    res = requests.get(url).json()
+    return res['results'][:10]  # Top 10
 
-    if res.status_code != 200:
-        return "Failed to fetch tech news."
+def summarize_text(text):
+    url = "https://api.aiforthings.com/summarize"  # Example summarizer API
+    response = requests.post(url, json={"text": text})
+    return response.json().get("summary", "No summary available.")
 
-    articles = res.json().get('hits', [])[:5]
-    if not articles:
-        return "No tech news found today."
-
-    # Create a summary with title and description/snippet (if available)
-    summaries = []
-    for i, article in enumerate(articles, start=1):
-        title = article.get("title", "No title")
-        snippet = article.get("story_text") or article.get("comment_text") or "No summary available."
-        if snippet and len(snippet) > 300:
-            snippet = snippet[:300] + "..."
-
-        summaries.append(f"*{i}. {title}*\n_{snippet}_")
-
-    return "*📰 Today's Top Tech News*\n\n" + "\n\n".join(summaries)
-
-def send_to_telegram(message):
-    telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+def send_telegram_message(text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {
         "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True
+        "text": text,
+        "parse_mode": "HTML"
     }
-    response = requests.post(telegram_url, data=data)
-    
-    print(f"Status: {response.status_code}")
-    print(f"Response: {response.text}")
+    requests.post(url, data=data)
+
+def main():
+    news_list = fetch_tech_news()
+    message = "📰 <b>Today's Top Tech News</b>\n\n"
+
+    for idx, news in enumerate(news_list, 1):
+        title = news.get('title')
+        content = news.get('description') or news.get('content', '')
+        summary = summarize_text(content) if content else "No summary available."
+        message += f"<b>{idx}. {title}</b>\n{summary}\n\n"
+
+    send_telegram_message(message)
 
 if __name__ == "__main__":
-    msg = get_tech_news()
-    send_to_telegram(msg)
+    main()
