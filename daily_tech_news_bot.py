@@ -23,6 +23,8 @@ def fetch_top_tech_news():
     try:
         response = requests.get(url)
         data = response.json()
+        print("🔍 Full API Response:")
+        print(data)  # ← Add this line to inspect the real response
     except Exception as e:
         print("❌ Error fetching/parsing API:", e)
         return []
@@ -37,6 +39,7 @@ def fetch_top_tech_news():
         return []
 
     return articles[:10]
+
 
 def format_news(news_list):
     formatted = "📰 *Top Tech News Today*\n\n"
