@@ -1,14 +1,14 @@
 import os
 import requests
 
-# Environment variables for security
+# Load environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 def get_tech_news():
     url = "https://hn.algolia.com/api/v1/search?tags=story&query=technology"
     res = requests.get(url)
-    
+
     if res.status_code != 200:
         return "Failed to fetch tech news."
 
@@ -16,10 +16,17 @@ def get_tech_news():
     if not articles:
         return "No tech news found today."
 
-    news = "\n\n".join(
-        [f"🔹 [{a['title']}]({a['url']})" for a in articles]
-    )
-    return f"*📰 Today's Tech News*\n\n{news}"
+    # Create a summary with title and description/snippet (if available)
+    summaries = []
+    for i, article in enumerate(articles, start=1):
+        title = article.get("title", "No title")
+        snippet = article.get("story_text") or article.get("comment_text") or "No summary available."
+        if snippet and len(snippet) > 300:
+            snippet = snippet[:300] + "..."
+
+        summaries.append(f"*{i}. {title}*\n_{snippet}_")
+
+    return "*📰 Today's Top Tech News*\n\n" + "\n\n".join(summaries)
 
 def send_to_telegram(message):
     telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -31,7 +38,6 @@ def send_to_telegram(message):
     }
     response = requests.post(telegram_url, data=data)
     
-    # Debug print in logs
     print(f"Status: {response.status_code}")
     print(f"Response: {response.text}")
 
