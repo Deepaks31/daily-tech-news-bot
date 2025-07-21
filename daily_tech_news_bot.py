@@ -51,8 +51,5 @@ def send_to_telegram(messages):
 # Run
 messages = get_tech_news()
 send_to_telegram(messages)
-print("BOT_TOKEN:", BOT_TOKEN)
-print("CHAT_ID:", CHAT_ID)
-print("NEWS_API_KEY:", NEWS_API_KEY)
-print("Telegram URL:", f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage")
+
 
