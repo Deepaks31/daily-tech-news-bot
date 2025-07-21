@@ -20,11 +20,18 @@ def fetch_top_tech_news():
     url = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_API_KEY}&category=technology&language=en"
     response = requests.get(url)
     data = response.json()
-    
-    if "results" not in data or not data["results"]:
+
+    # Check for API errors
+    if "status" in data and data["status"] != "success":
+        print("API Error:", data.get("message", "Unknown error"))
         return []
 
-    return data["results"][:10]  # Get top 10 tech news articles
+    if not isinstance(data.get("results"), list):
+        print("No valid 'results' found in API response.")
+        return []
+
+    return data["results"][:10]
+
 
 def format_news(news_list):
     formatted = "📰 *Top Tech News Today*\n\n"
