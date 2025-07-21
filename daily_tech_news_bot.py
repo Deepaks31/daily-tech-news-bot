@@ -19,7 +19,7 @@ def summarize_text(text, sentence_count=2):
     return ' '.join(str(sentence) for sentence in summary)
 
 def fetch_top_tech_news():
-    url = f"https://gnews.io/api/v4/top-headlines?topic=technology&lang=en&token={NEWSDATA_API_KEY}&category=technology&language=e"
+    url = f"https://gnews.io/api/v4/top-headlines?topic=technology&lang=en&token={NEWSDATA_API_KEY}"
     try:
         response = requests.get(url)
         data = response.json()
