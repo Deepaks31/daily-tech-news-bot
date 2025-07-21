@@ -11,28 +11,40 @@ def get_tech_news():
     data = response.json()
 
     if "results" not in data or not data["results"]:
-        return "❌ No articles found today."
+        return ["❌ No tech news found today."]
 
     articles = data["results"][:10]
-    news = ""
+    news_messages = []
+    current_message = "📰 *Top Tech News Today*\n\n"
+
     for i, article in enumerate(articles, 1):
-        title = article.get("title", "No title")
-        description = article.get("description", "No description")
-        news += f"🔹 *{title}*\n_{description}_\n\n"
+        title = article.get("title", "No title").strip()
+        description = article.get("description", "No description").strip()
+        entry = f"🔹 *{title}*\n_{description}_\n\n"
 
-    return f"📰 *Top 10 Tech News Today*\n\n{news}"
+        if len(current_message) + len(entry) > 3900:
+            news_messages.append(current_message)
+            current_message = ""
 
-def send_to_telegram(message):
+        current_message += entry
+
+    if current_message:
+        news_messages.append(current_message)
+
+    return news_messages
+
+def send_to_telegram(messages):
     telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {
-        "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    response = requests.post(telegram_url, data=data)
-    print("Status:", response.status_code)
-    print("Response:", response.text)
+    for message in messages:
+        data = {
+            "chat_id": CHAT_ID,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+        response = requests.post(telegram_url, data=data)
+        print("Status:", response.status_code)
+        print("Response:", response.text)
 
-# Run the bot
-message = get_tech_news()
-send_to_telegram(message)
+# Run
+messages = get_tech_news()
+send_to_telegram(messages)
