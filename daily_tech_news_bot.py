@@ -1,8 +1,8 @@
 import os
 import requests
 
-BOT_TOKEN = "8163067493:AAFblQYIX4TWo8AMJDjIzHPqp-iWilISi40"
-CHAT_ID = "5286926723"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 def get_tech_news():
     url = "https://hn.algolia.com/api/v1/search?tags=story&query=technology"
