@@ -2,7 +2,7 @@ name: Daily Tech News Bot
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Every day at 6:00 AM UTC
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run script with secrets
+      - name: Run bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
