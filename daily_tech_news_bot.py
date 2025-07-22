@@ -5,8 +5,8 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
 # Load secrets from environment (GitHub Actions injects these)
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
-TELEGRAM_BOT_TOKEN = os.environ.get("BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("CHAT_ID")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 NEWS_API_URL = (
     f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en"
