@@ -9,8 +9,9 @@ TELEGRAM_BOT_TOKEN = os.environ.get("BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("CHAT_ID")
 
 NEWS_API_URL = (
-    f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q=technology&language=en&page=1"
+    f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en"
 )
+
 
 # Set device
 device = "cuda" if torch.cuda.is_available() else "cpu"
