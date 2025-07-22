@@ -1,23 +1,26 @@
 import os
 import requests
-import google.generativeai as genai
 
-# Load environment variables
+# ENV variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
+def summarize_with_gemini(text):
+    gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": f"Summarize the following news article in 2 lines:\n\n{text}"}]}]
+    }
 
-def summarize_with_gemini(content):
     try:
-        model = genai.GenerativeModel("gemini-pro")  # Use correct model ID
-        response = model.generate_content(content)
-        return response.text.strip()
+        response = requests.post(gemini_url, headers=headers, json=payload)
+        response.raise_for_status()
+        summary = response.json()['candidates'][0]['content']['parts'][0]['text']
+        return summary
     except Exception as e:
-        print(f"⚠️ Gemini summarization failed: {e}")
+        print("⚠️ Gemini summarization failed:", e)
         return "Summary not available."
 
 def get_tech_news():
@@ -34,12 +37,10 @@ def get_tech_news():
 
     for i, article in enumerate(articles, 1):
         title = (article.get("title") or "No title").strip()
-        description = (article.get("description") or "No description").strip()
-        full_text = f"{title}\n\n{description}"
-        summary = summarize_with_gemini(full_text)
+        content = (article.get("description") or title)
+        summary = summarize_with_gemini(content)
 
         entry = f"🔹 {title}\n_{summary}_\n\n"
-
         if len(current_message) + len(entry) > 3900:
             news_messages.append(current_message)
             current_message = ""
@@ -63,7 +64,7 @@ def send_to_telegram(messages):
         print("✅ Telegram Status:", response.status_code)
         print("✅ Response:", response.text)
 
-# Run the bot
+# Run
 if __name__ == "__main__":
     messages = get_tech_news()
     send_to_telegram(messages)
