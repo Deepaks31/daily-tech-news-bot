@@ -37,13 +37,25 @@ def get_tech_news():
 # 2. Hugging Face summarization
 def summarize_with_hf(text):
     try:
-        if len(text) < 50:
-            return "Too short to summarize."
-        summary = summarizer(text, max_length=50, min_length=15, do_sample=False)
-        return summary[0]['summary_text']
+        words = text.split()
+        word_count = len(words)
+
+        if word_count < 20:
+            return text.strip()  # No need to summarize
+
+        # Dynamically adjust summarization length
+        max_len = min(80, int(word_count * 0.6))
+        min_len = min(30, int(word_count * 0.3))
+
+        # Hugging Face limit: input max 1024 tokens (approx 700–800 words)
+        trimmed_text = " ".join(words[:700])  # Trim long input
+
+        summary = summarizer(trimmed_text, max_length=max_len, min_length=min_len, do_sample=False)
+        return summary[0]['summary_text'].strip()
     except Exception as e:
         print(f"⚠️ Hugging Face summarization failed: {e}")
         return "Summary not available."
+
 
 # 3. Send to Telegram
 def send_to_telegram(summarized_news):
