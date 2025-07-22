@@ -1,65 +1,68 @@
-import os
 import requests
-import google.generativeai as genai
+import datetime
+import os
+from google.generativeai import configure, GenerativeModel
 
-# Load secrets from GitHub Actions environment
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+# Configurations
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("CHAT_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-pro")
+configure(api_key=GEMINI_API_KEY)
+model = GenerativeModel("gemini-pro")
+
+NEWS_API_URL = (
+    f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&language=en&category=technology&country=us,in&size=10"
+)
+
+TELEGRAM_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
 
 def summarize_with_gemini(text):
+    if not text or len(text.strip()) < 30:
+        return "⚠️ Not enough content to summarize."
     try:
-        response = model.generate_content(f"Summarize the following news in 2-3 lines:\n{text}")
+        response = model.generate_content(
+            f"Summarize this tech news article in 2 lines:
+\n{text}",
+            generation_config={"temperature": 0.5}
+        )
         return response.text.strip()
     except Exception as e:
-        return "⚠️ Gemini failed to summarize."
+        return f"⚠️ Gemini failed to summarize: {e}"
+
 
 def get_tech_news():
-    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en&country=us"
-    response = requests.get(url)
-    data = response.json()
+    try:
+        res = requests.get(NEWS_API_URL)
+        data = res.json()
+        articles = data.get("results", [])
 
-    if "results" not in data or not data["results"]:
-        return ["❌ No tech news found today."]
+        message = "\U0001F4F0 *Top Tech News (Summarized)*\n\n"
+        for i, article in enumerate(articles, 1):
+            title = article.get("title", "No title")
+            content = article.get("content") or article.get("description") or ""
+            summary = summarize_with_gemini(content)
 
-    articles = data["results"][:5]
-    news_messages = []
-    message = "📰 *Top Tech News (Summarized)*\n\n"
+            message += f"\u25B6️ *{title}*\n_{summary}_\n\n"
 
-    for i, article in enumerate(articles, 1):
-        title = article.get("title", "No title")
-        content = article.get("description") or article.get("content") or ""
-        summary = summarize_with_gemini(content)
+        return message.strip()
+    except Exception as e:
+        return f"⚠️ Failed to fetch news: {e}"
 
-        entry = f"🔹 *{title}*\n_{summary}_\n\n"
-        if len(message) + len(entry) > 3900:
-            news_messages.append(message)
-            message = ""
-        message += entry
 
-    if message:
-        news_messages.append(message)
+def send_to_telegram(message):
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    res = requests.post(TELEGRAM_URL, json=payload)
+    print("Status:", res.status_code)
+    print("Response:", res.text)
 
-    return news_messages
 
-def send_to_telegram(messages):
-    telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    for message in messages:
-        payload = {
-            "chat_id": CHAT_ID,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
-        res = requests.post(telegram_url, data=payload)
-        print("Status:", res.status_code)
-        print("Response:", res.text)
-
-# Run the bot
 if __name__ == "__main__":
-    messages = get_tech_news()
-    send_to_telegram(messages)
+    news_message = get_tech_news()
+    send_to_telegram(news_message)
