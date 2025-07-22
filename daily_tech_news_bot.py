@@ -7,6 +7,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Setup Gemini
 genai.configure(api_key=GEMINI_API_KEY)
@@ -27,13 +28,13 @@ def get_tech_news():
 
     return data["results"][:10]  # Top 10 articles
 
-def summarize_content(content):
+def summarize_with_gemini(content):
     try:
-        prompt = f"Summarize this tech news in 2 lines:\n\n{content}"
-        response = model.generate_content(prompt)
+        model = genai.GenerativeModel("gemini-pro")  # ✅ Correct model ID for v1
+        response = model.generate_content(content)
         return response.text.strip()
     except Exception as e:
-        print("⚠️ Gemini summarization failed:", e)
+        print(f"⚠️ Gemini summarization failed: {e}")
         return "Summary not available."
 
 def format_messages(articles):
