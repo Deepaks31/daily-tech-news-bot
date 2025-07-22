@@ -1,84 +1,51 @@
 import os
 import requests
 from transformers import pipeline
-from dotenv import load_dotenv
 
-load_dotenv()
+# --- Load from environment variables ---
+TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("CHAT_ID")
+NEWSDATA_API_KEY = os.getenv("NEWS_API_KEY")
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+NEWS_API_URL = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_API_KEY}&category=technology&language=en"
 
-# Load Hugging Face summarization model (once)
+# Hugging Face Summarizer
 summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
 
-# 1. Fetch news from NewsData.io
 def get_tech_news():
-    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en&country=us"
-    response = requests.get(url)
-    data = response.json()
-
-    if "results" not in data or not data["results"]:
-        return [{"title": "❌ No tech news found today.", "summary": ""}]
-
-    articles = data["results"][:10]
-    summarized_news = []
-
-    for article in articles:
-        title = (article.get("title") or "No title").strip()
-        content = article.get("content") or article.get("description") or ""
-
-        # Summarize using Hugging Face
-        summary = summarize_with_hf(title + ". " + content)
-        summarized_news.append({"title": title, "summary": summary})
-
-    return summarized_news
-
-# 2. Hugging Face summarization
-def summarize_with_hf(text):
     try:
-        words = text.split()
-        word_count = len(words)
-
-        if word_count < 20:
-            return text.strip()  # No need to summarize
-
-        # Dynamically adjust summarization length
-        max_len = min(80, int(word_count * 0.6))
-        min_len = min(30, int(word_count * 0.3))
-
-        # Hugging Face limit: input max 1024 tokens (approx 700–800 words)
-        trimmed_text = " ".join(words[:700])  # Trim long input
-
-        summary = summarizer(trimmed_text, max_length=max_len, min_length=min_len, do_sample=False)
-        return summary[0]['summary_text'].strip()
+        response = requests.get(NEWS_API_URL)
+        articles = response.json().get("results", [])[:10]
+        return articles
     except Exception as e:
-        print(f"⚠️ Hugging Face summarization failed: {e}")
-        return "Summary not available."
+        print("Error fetching news:", e)
+        return []
 
+def summarize_text(text, max_tokens=130):
+    if len(text.split()) < 50:
+        return text
+    summary = summarizer(text, max_length=max_tokens, min_length=25, do_sample=False)
+    return summary[0]['summary_text']
 
-# 3. Send to Telegram
-def send_to_telegram(summarized_news):
-    telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+def send_news_to_telegram():
+    articles = get_tech_news()
+    if not articles:
+        return
+
     message = "📰 *Top Tech News Today*\n\n"
+    for article in articles:
+        title = article.get("title", "No Title")
+        desc = article.get("description", "") or article.get("content", "")
+        summary = summarize_text(desc)
+        message += f"🔹 *{title}*\n_{summary}_\n\n"
 
-    for news in summarized_news:
-        message += f"🔹 *{news['title']}*\n_{news['summary']}_\n\n"
-
-    if len(message) > 4000:
-        message = message[:4000] + "\n…"
-
-    data = {
-        "chat_id": CHAT_ID,
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
         "parse_mode": "Markdown"
     }
+    requests.post(url, data=payload)
 
-    response = requests.post(telegram_url, data=data)
-    print("✅ Telegram Status:", response.status_code)
-    print("✅ Response:", response.text)
-
-# ▶️ Run script
 if __name__ == "__main__":
-    news = get_tech_news()
-    send_to_telegram(news)
+    send_news_to_telegram()
