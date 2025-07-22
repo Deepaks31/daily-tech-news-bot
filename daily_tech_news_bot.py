@@ -2,20 +2,20 @@ import os
 import requests
 import google.generativeai as genai
 
-# Load API keys from GitHub Secrets (GitHub Actions will pass them as env vars)
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
+# Load secrets
+NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini
+# Configure Gemini model
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-pro")
 
 def get_tech_news():
     url = "https://newsdata.io/api/1/news"
     params = {
-        "apikey": NEWS_API_KEY,
+        "apikey": NEWSDATA_API_KEY,
         "category": "technology",
         "language": "en",
         "country": "us,in,gb",
