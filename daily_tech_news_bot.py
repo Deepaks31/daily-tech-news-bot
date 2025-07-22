@@ -1,80 +1,84 @@
 import os
 import requests
 import google.generativeai as genai
-from datetime import datetime
 
 # Load environment variables
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")  # NewsData.io key
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Configure Gemini
+# Setup Gemini
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-pro")
 
-
 def get_tech_news():
-    url = "https://newsdata.io/api/1/news"
-    params = {
-        "apikey": NEWS_API_KEY,
-        "q": "technology",  # Use general query
-        "page": 1
-    }
-
+    url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q=technology"
     try:
-        response = requests.get(url, params=params)
+        response = requests.get(url)
         response.raise_for_status()
         data = response.json()
+    except Exception as e:
+        print("❌ Failed to fetch news:", e)
+        return ["❌ Error fetching news from NewsData.io."]
 
-        articles = data.get("results", [])
-        if not articles:
-            print("⚠️ No articles found in API response.")
-        return articles[:10]
-    except requests.exceptions.HTTPError as err:
-        print(f"❌ Failed to fetch news: {err}")
-        return []
+    if "results" not in data or not data["results"]:
+        return ["❌ No tech news found today."]
 
+    return data["results"][:10]  # Top 10 articles
 
-def summarize_article(content):
+def summarize_content(content):
     try:
-        prompt = f"Summarize this tech news article in 2 lines:\n{content}"
+        prompt = f"Summarize this tech news in 2 lines:\n\n{content}"
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
-        print(f"⚠️ Gemini error: {e}")
-        return "⚠️ Gemini failed to summarize."
+        print("⚠️ Gemini summarization failed:", e)
+        return "Summary not available."
 
+def format_messages(articles):
+    news_messages = []
+    current_message = "📰 *Top Tech News Today*\n\n"
 
-def send_to_telegram(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    response = requests.post(url, json=payload)
-    print(f"✅ Telegram Status: {response.status_code}")
-    print(response.text)
+    for article in articles:
+        title = (article.get("title") or "No Title").strip()
+        content = (
+            article.get("content") or
+            article.get("description") or
+            article.get("title") or
+            "No content available."
+        ).strip()
 
+        summary = summarize_content(content)
+        entry = f"🔹 *{title}*\n_{summary}_\n\n"
 
-def main():
-    news_items = get_tech_news()
-    if not news_items:
-        send_to_telegram("⚠️ No tech news found today.")
-        return
+        if len(current_message) + len(entry) > 3900:
+            news_messages.append(current_message)
+            current_message = ""
 
-    summary_lines = [f"📰 *Top Tech News - {datetime.now().strftime('%d %b %Y')}*\n"]
+        current_message += entry
 
-    for item in news_items:
-        title = item.get("title", "No Title")
-        content = item.get("content") or item.get("description") or item.get("link", "")
-        summary = summarize_article(content)
-        summary_lines.append(f"🔹 *{title}*\n{summary}\n")
+    if current_message:
+        news_messages.append(current_message)
 
-    final_message = "\n".join(summary_lines)
-    send_to_telegram(final_message)
+    return news_messages
 
+def send_to_telegram(messages):
+    telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    for message in messages:
+        data = {
+            "chat_id": CHAT_ID,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+        response = requests.post(telegram_url, data=data)
+        print("✅ Telegram Status:", response.status_code)
+        print("✅ Response:", response.text)
 
-if __name__ == "__main__":
-    main()
+# Run everything
+articles = get_tech_news()
+if isinstance(articles, list) and isinstance(articles[0], str):
+    send_to_telegram(articles)  # It's an error or "No news" message
+else:
+    messages = format_messages(articles)
+    send_to_telegram(messages)
