@@ -2,26 +2,26 @@ name: Daily Tech News Bot
 
 on:
   schedule:
-    - cron: '0 9 * * *'  # Every day at 9 AM UTC
+    - cron: '30 3 * * *'  # 9:00 AM IST (3:30 AM UTC)
   workflow_dispatch:
 
 jobs:
-  run-news-bot:
+  send-tech-news:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install python-telegram-bot requests
+        run: pip install requests
 
-      - name: Run bot
+      - name: Run daily tech news bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
