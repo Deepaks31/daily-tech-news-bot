@@ -1,9 +1,23 @@
 import os
 import requests
+import google.generativeai as genai
 
+# Load secrets from GitHub Actions environment
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Configure Gemini
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-pro")
+
+def summarize_with_gemini(text):
+    try:
+        response = model.generate_content(f"Summarize the following news in 2-3 lines:\n{text}")
+        return response.text.strip()
+    except Exception as e:
+        return "⚠️ Gemini failed to summarize."
 
 def get_tech_news():
     url = f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&category=technology&language=en&country=us"
@@ -13,38 +27,39 @@ def get_tech_news():
     if "results" not in data or not data["results"]:
         return ["❌ No tech news found today."]
 
-    articles = data["results"][:10]
+    articles = data["results"][:5]
     news_messages = []
-    current_message = "📰 *Top Tech News Today*\n\n"
+    message = "📰 *Top Tech News (Summarized)*\n\n"
 
     for i, article in enumerate(articles, 1):
-        title = (article.get("title") or "No title").strip()
-        description = (article.get("description") or "No description").strip()
-        entry = f"🔹 *{title}*\n_{description}_\n\n"
+        title = article.get("title", "No title")
+        content = article.get("description") or article.get("content") or ""
+        summary = summarize_with_gemini(content)
 
-        if len(current_message) + len(entry) > 3900:
-            news_messages.append(current_message)
-            current_message = ""
+        entry = f"🔹 *{title}*\n_{summary}_\n\n"
+        if len(message) + len(entry) > 3900:
+            news_messages.append(message)
+            message = ""
+        message += entry
 
-        current_message += entry
-
-    if current_message:
-        news_messages.append(current_message)
+    if message:
+        news_messages.append(message)
 
     return news_messages
 
 def send_to_telegram(messages):
     telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     for message in messages:
-        data = {
+        payload = {
             "chat_id": CHAT_ID,
             "text": message,
             "parse_mode": "Markdown"
         }
-        response = requests.post(telegram_url, data=data)
-        print("Status:", response.status_code)
-        print("Response:", response.text)
+        res = requests.post(telegram_url, data=payload)
+        print("Status:", res.status_code)
+        print("Response:", res.text)
 
-# Run
-messages = get_tech_news()
-send_to_telegram(messages)
+# Run the bot
+if __name__ == "__main__":
+    messages = get_tech_news()
+    send_to_telegram(messages)
