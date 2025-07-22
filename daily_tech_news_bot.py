@@ -16,9 +16,8 @@ def get_tech_news():
     url = "https://newsdata.io/api/1/news"
     params = {
         "apikey": NEWSDATA_API_KEY,
-        "category": "technology",
+        "q": "technology",  # Use query instead of category
         "language": "en",
-        "country": "us,in,gb",
         "page": 1
     }
 
@@ -26,10 +25,15 @@ def get_tech_news():
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
-        return data.get("results", [])[:10]
+
+        results = data.get("results", [])
+        if not results:
+            print("⚠️ No news data in results.")
+        return results[:10]
     except Exception as e:
         print(f"❌ Failed to fetch news: {e}")
         return []
+
 
 def summarize_article(content):
     try:
