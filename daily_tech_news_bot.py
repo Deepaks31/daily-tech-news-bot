@@ -1,65 +1,76 @@
-import os
 import requests
-from transformers import pipeline
+import os
+import torch
+from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 
-# Environment variables (from GitHub secrets or local .env)
-TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("CHAT_ID")
-NEWSDATA_API_KEY = os.getenv("NEWS_API_KEY")
+# Load secrets from environment (GitHub Actions injects these)
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
+TELEGRAM_BOT_TOKEN = os.environ.get("BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("CHAT_ID")
 
-NEWS_API_URL = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_API_KEY}&category=technology&language=en"
+NEWS_API_URL = (
+    f"https://newsdata.io/api/1/news?apikey={NEWS_API_KEY}&q=technology&language=en&page=1"
+)
 
-# Load summarization pipeline
+# Set device
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Device set to use", device)
+
+# Load summarizer
 print("Loading summarizer...")
-summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
-print("Device set to use", summarizer.device)
+tokenizer = AutoTokenizer.from_pretrained("t5-small")
+model = AutoModelForSeq2SeqLM.from_pretrained("t5-small").to(device)
 
-def get_tech_news():
+def summarize_text(text):
+    input_text = "summarize: " + text.strip().replace("\n", "")
+    inputs = tokenizer.encode(input_text, return_tensors="pt", max_length=512, truncation=True).to(device)
+
+    input_len = inputs.shape[1]
+    max_len = min(50, int(input_len * 0.5))  # dynamic max length
+    outputs = model.generate(inputs, max_length=max_len, min_length=10, length_penalty=2.0, num_beams=4, early_stopping=True)
+    summary = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    return summary.strip()
+
+def fetch_news():
     try:
         response = requests.get(NEWS_API_URL)
+        response.raise_for_status()
         data = response.json()
-        results = data.get("results", [])
-        if isinstance(results, list):
-            return results[:10]  # top 10 articles
-        else:
-            print("Unexpected results format:", type(results))
+
+        if "results" not in data or not data["results"]:
+            print("No articles found.")
             return []
+
+        articles = []
+        for article in data["results"][:10]:  # Get top 10
+            title = article.get("title", "")
+            description = article.get("description", "")
+            content = description or title
+            if content:
+                summary = summarize_text(content)
+                articles.append(f"📰 *{title}*\n_{summary}_")
+
+        return articles
     except Exception as e:
         print("Error fetching news:", e)
         return []
 
-def summarize_text(text, max_tokens=130):
-    if not text or len(text.split()) < 50:
-        return text  # Skip summarizing short texts
-    try:
-        summary = summarizer(text, max_length=max_tokens, min_length=25, do_sample=False)
-        return summary[0]['summary_text']
-    except Exception as e:
-        print("Error summarizing:", e)
-        return text
-
-def send_news_to_telegram():
-    articles = get_tech_news()
-    if not articles:
-        print("No articles found.")
-        return
-
-    message = "📰 *Top Tech News Today*\n\n"
-    for article in articles:
-        title = article.get("title", "No Title")
-        desc = article.get("description") or article.get("content") or ""
-        summary = summarize_text(desc)
-        message += f"🔹 *{title}*\n_{summary}_\n\n"
-
-    # Send to Telegram
+def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": message,
         "parse_mode": "Markdown"
     }
-    res = requests.post(url, data=payload)
-    print("Telegram send status:", res.status_code)
+    r = requests.post(url, json=payload)
+    print("✅ Telegram Status:", r.status_code)
 
 if __name__ == "__main__":
-    send_news_to_telegram()
+    news_summaries = fetch_news()
+    if news_summaries:
+        final_message = "📢 *Top Tech News Today*\n\n" + "\n\n".join(news_summaries)
+    else:
+        final_message = "⚠️ No tech news found today."
+
+    send_telegram_message(final_message)
